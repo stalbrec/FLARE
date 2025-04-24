@@ -1,0 +1,10 @@
+channels:
+  - conda-forge
+  - bioconda
+  - r
+dependencies:
+  - pip=25.0.1=pyh8b19718_0
+  - python=3.12.9=h9e4cc4f_1_cpython
+  - snakemake=9.1.2=hdfd78af_0
+  - pip:
+      - markdown==3.8
