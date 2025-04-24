@@ -13,7 +13,8 @@ rule all:
 
 rule sample_report:
     input:
-        kraken_result_fp = "results/{sample}/kraken2/output.txt"
+        kraken_result_fp = "results/{sample}/kraken2/{sample}_kraken2_output.txt",
+        krona_result_fp = "results/{sample}/krona/{sample}_krona.html"
     output:
         report_fp = "results/{sample}/sample_report.md"
     shell:
@@ -52,8 +53,8 @@ rule run_kraken2:
         R2 = lambda wc: SAMPLE_READS[wc.sample]["R2"],
         kraken2_db = rules.prepare_kraken2_db_shm.output.db_dir if config["kraken2_use_tmpfs"] else config["kraken2_db"]
     output:
-        kraken_output_fp="results/{sample}/kraken2/output.txt",
-        kraken_report_fp="results/{sample}/kraken2/report.txt"
+        kraken_output_fp="results/{sample}/kraken2/{sample}_kraken2_output.txt",
+        kraken_report_fp="results/{sample}/kraken2/{sample}_kraken2_report.txt"
     conda:
         "envs/metagen.yaml"
     log:
@@ -70,5 +71,24 @@ rule run_kraken2:
         (\
         kraken2 --db ${{KRAKEN_DB}} --threads {threads} ${{EXTRA_ARGS}} --paired --report {output.kraken_report_fp} \
                 --output {output.kraken_output_fp} {input.R1} {input.R2} \
-        ) 2>> {log}
+        ) >> {log} 2>&1
+        """
+
+rule run_krona:
+    input: 
+        kraken_output_fp="results/{sample}/kraken2/{sample}_kraken2_output.txt"
+    output:
+        krona_output_fp="results/{sample}/krona/{sample}_krona.html"
+    conda:
+        "envs/metagen.yaml"
+    log:
+        "logs/{sample}/krona.log"
+    shell:
+        """
+        echo "[INFO] $(date) - Running krona on kraken2 results {input.kraken_output_fp}" > {log}
+        echo "[INFO] $(date) - Checking for updates of taxonomy" >> {log}
+        (ktUpdateTaxonomy.sh) >> {log} 2>&1
+        
+        echo "[INFO] $(date) - Running ktImportTaxonomy..." >> {log}
+        (ktImportTaxonomy -t 5 -m 3 -o {output.krona_output_fp} {input.kraken_output_fp}) >> {log} 2>&1
         """
