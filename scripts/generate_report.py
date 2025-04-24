@@ -2,12 +2,12 @@ from snakemake.script import snakemake
 from pathlib import Path
 import markdown
 
-def write_report(sample:str, report_fp:str, ccmetagen_fp:str):
+def write_report(sample:str, report_fp:Path, ccmetagen_fp:Path):
     with open(report_fp, "w") as md_fout:
         md_fout.write(f"# 🧪 FLARE Report on Sample {sample}\n")
-        md_fout.write(f"- [CCMetagen krona report]({ccmetagen_fp.resolve()})\n")
+        md_fout.write(f"- [CCMetagen krona report]({ccmetagen_fp.relative_to(report_fp.parent)})\n")
 
-def markdown_to_html(sample:str, markdown_fp:str, html_fp:str):
+def markdown_to_html(sample:str, markdown_fp:Path, html_fp:Path):
     md_content=open(markdown_fp, "r").read()
     html_body = markdown.markdown(
         md_content,
