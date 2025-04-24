@@ -1,5 +1,5 @@
 import pandas as pd
-configfile: "config/config.yml"
+configfile: "config/config.yaml"
 SAMPLES_DF = pd.read_csv(config["samples"], sep="\t")
 SAMPLES = SAMPLES_DF["sample"].to_list()
 SAMPLE_READS = {
