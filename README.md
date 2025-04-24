@@ -20,16 +20,4 @@ sudo mount -t tmpfs -o size=200G tmpfs /mnt/database_tmpfs
 sudo chown -R root:data /mnt/database_tmpfs
 ```
 
-run kraken
-
-```bash
-/home/admin/seq_tools/kraken2/kraken2 --db /home/admin/seq_tools/kraken2/kraken2_DB/ --threads 10 --paired --report ' + OutPath + SeqNo +'_k2_report.txt --output ' + OutPath + SeqNo + '_k2_output.txt ' + In1 + ' ' + In2
-```
-
-kraken2 output to krona
-
-
-```bash
-/home/admin/seq_tools/KronaTools-2.7/scripts/ImportTaxonomy.pl -t 5 -m 3 -o results/out_krona.html results/kraken_output.txt
-```
 
