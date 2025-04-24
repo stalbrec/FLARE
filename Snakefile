@@ -41,8 +41,7 @@ rule run_fastqc:
         R1 = rules.unzip_reads.output.R1_unzipped,
         R2 = rules.unzip_reads.output.R2_unzipped
     output:
-        R1_fastqc_html_fp = "results/{sample}/fastqc/{sample}_R1_fastqc.html",
-        R2_fastqc_html_fp = "results/{sample}/fastqc/{sample}_R2_fastqc.html",
+        fastqc_output_dir = directory("results/{sample}/{sample}_fastqc")
     log:
         "logs/{sample}/fastqc.log"
     conda:
@@ -50,9 +49,28 @@ rule run_fastqc:
     shell:
         """
         echo "[INFO] $(date) [fastqc] Running FASTQC on: \n {input.R1} \n {input.R2}" >> {log}
-        touch {output.R1_fastqc_html_fp}
-        touch {output.R2_fastqc_html_fp}
+        mkdir -p {output.fastqc_output_dir}
+        fastqc -o {output.fastqc_output_dir} -f fastq {input.R1} {input.R2} >> {log} 2>&1
         """
+rule run_multiqc:
+    input: 
+        scan_dirs = expand(rules.run_fastqc.output.fastqc_output_dir,sample=SAMPLES)
+    output:
+        multiqc_report_dir=directory("results/multiqc"),
+        multiqc_report_fp="results/multiqc/multiqc_report.html",
+        multiqc_data_dir=directory("results/multiqc/multiqc_data")
+    log:
+        "logs/multiqc.log"
+    conda:
+        "envs/metagen.yaml"
+    shell:
+        """
+        echo "[INFO] $(date) [multiqc] - Running multiqc to summarize all reports" > {log}
+        multiqc {input.scan_dirs} -o {output.multiqc_report_dir} >> {log} 2>&1
+        #OPENAI_API_KEY=token multiqc S*/*_fastqc/  --ai --ai-custom-endpoint http://localhost:11434/v1/chat/completions --ai-model llama3.3:latest --ai-provider custom 
+        """
+
+
 # might be useful if your db is on a slow disk and you have plenty of free memory:
 rule prepare_kraken2_db_shm:
     input:
@@ -214,7 +232,8 @@ rule run_ccmetagen:
 rule sample_report:
     input:
         ccmetagen_kma_result_fp=rules.run_ccmetagen.output.ccmetagen_output,
-        fastqc_report=rules.run_fastqc.output.R1_fastqc_html_fp,
+        fastqc_report=rules.run_fastqc.output.fastqc_output_dir,
+        multiqc_report=rules.run_multiqc.output.multiqc_report_fp,
         kraken_result_fp=rules.run_kraken2.output.kraken_output_fp,
         krona_result_fp = rules.run_krona.output.krona_output_fp
     output:
