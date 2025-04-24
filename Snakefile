@@ -94,7 +94,7 @@ rule prepare_kraken2_db_shm:
     conda:
         "envs/metagen.yaml"
     params:
-        use_tmpfs=config["kraken2_use_tmpfs"]
+        use_tmpfs=config["kraken2_use_tmpfs"],
     shell:
         """
         set -euo pipefail
@@ -131,7 +131,7 @@ rule run_kraken2:
         "envs/metagen.yaml"
     params:
         use_tmpfs=config["kraken2_use_tmpfs"],
-        use_memory_mapping=config["kraken2_memory_mapping"]
+        use_memory_mapping=config["kraken2_memory_mapping"],
     shell:
         """
         EXTRA_ARGS=""
@@ -179,7 +179,7 @@ rule prepare_kma_db:
         "envs/metagen.yaml"
     params:
         use_shm=config["kma_use_shm"],
-        kma_db_local_path=config["kma_ref_database"]
+        kma_db_local_path=config["kma_ref_database"],
     shell:
         """
         echo "[INFO] $(date) [kma db] - Preparing kma database." > {log}
@@ -200,13 +200,12 @@ rule cleanup_databases:
     output:
         kma_db_cleanup_done="results/kma_database/db_cleanup_done",
     log:
-        "logs/databases/cleanup.log"
+        "logs/databases/cleanup.log",
     conda:
         "envs/metagen.yaml"
     params:
         use_shm=config["kma_use_shm"],
-        kma_db_local_path=config["kma_ref_database"]
-
+        kma_db_local_path=config["kma_ref_database"],
     shell:
         """
         echo "[INFO] $(date) [database cleanup] - Starting cleanup of databases..." > {log}
@@ -229,9 +228,11 @@ rule run_kma:
     output:
         kma_align_output_res_fp="results/{sample}/kma/{sample}_out_kma.res",
     params:
-        kma_align_output_prefix=lambda wc, output: output["kma_align_output_res_fp"].replace(".res",""),
+        kma_align_output_prefix=lambda wc, output: output[
+            "kma_align_output_res_fp"
+        ].replace(".res", ""),
         use_shm=config["kma_use_shm"],
-        kma_db_local_path=config["kma_ref_database"]
+        kma_db_local_path=config["kma_ref_database"],
     conda:
         "envs/metagen.yaml"
     log:
@@ -276,7 +277,7 @@ rule sample_report:
     output:
         report_fp="results/{sample}/sample_report.md",
     log:
-        "logs/{sample}/sample_report.log"
+        "logs/{sample}/sample_report.log",
     conda:
         "snakemake"
     script:
