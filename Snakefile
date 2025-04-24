@@ -63,12 +63,12 @@ rule run_kraken2:
         EXTRA_ARGS=""
         KRAKEN_DB={input.kraken2_db}
         echo "[INFO] $(date) - Running kraken2 on samples: \n{input.R1}\n{input.R2}" > {log}
-        if [[ "{config[kraken2_use_tmpfs]}" == "True" ]]; then
-            echo "[INFO] $(date) - using kraken2 db in shm. Extending kraken2 arguments with --memory-mapping." >> {log}
+        if [[ "{config[kraken2_use_tmpfs]}" == "True" || "{config[kraken2_memory_mapping]}" == "True" ]]; then
+            echo "[INFO] $(date) - Extending kraken2 arguments with --memory-mapping." >> {log}
             EXTRA_ARGS="${{EXTRA_ARGS}} --memory-mapping "
         fi
         (\
-        kraken2 --db ${{KRAKEN_DB}} --threads {threads} ${{EXTRA_ARGS}} --memory-mapping --paired --report {output.kraken_report_fp} \
+        kraken2 --db ${{KRAKEN_DB}} --threads {threads} ${{EXTRA_ARGS}} --paired --report {output.kraken_report_fp} \
                 --output {output.kraken_output_fp} {input.R1} {input.R2} \
         ) 2>> {log}
         """
