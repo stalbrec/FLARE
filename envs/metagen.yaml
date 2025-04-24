@@ -4,4 +4,6 @@ channels:
 dependencies:
   - kraken2=2.14
   - metaxa=2.2.3
-  - ccmetagen==1.2.5
+  - ccmetagen=1.2.5
+  - fastqc=0.12.1
+  - multiqc=1.28
