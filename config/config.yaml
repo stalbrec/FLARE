@@ -3,3 +3,5 @@ kraken2_db: "/home/common-data/databases/kraken2_old"
 kraken2_use_tmpfs: false
 kraken2_tmpfs_path: "/mnt/database_tmpfs/kraken2_db"
 kraken2_memory_mapping: true
+kma_ref_database: "/home/common-data/databases/ncbi_nt/compress_ncbi_nt/ncbi_nt"
+kma_use_shm: true
