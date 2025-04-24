@@ -10,18 +10,49 @@ rule all:
     input:
         expand("results/{sample}/sample_report.md",sample=SAMPLES)
 
-rule sample_report:
+
+
+rule unzip_reads:
     input:
-        kma_result_fp="results/{sample}/kma/{sample}_out_kma.res"
-        # kraken_result_fp = "results/{sample}/kraken2/{sample}_kraken2_output.txt",
-        # krona_result_fp = "results/{sample}/krona/{sample}_krona.html"
+        R1 = lambda wc: SAMPLE_READS[wc.sample]["R1"],
+        R2 = lambda wc: SAMPLE_READS[wc.sample]["R2"]
     output:
-        report_fp = "results/{sample}/sample_report.md"
+        R1_unzipped = temp("results/raw_reads/{sample}_R1.fastq"),
+        R2_unzipped = temp("results/raw_reads/{sample}_R2.fastq")
+    log:
+        "logs/{sample}/raw_reads.log"
     shell:
         """
-        touch {output.report_fp} 
+        if [[ {input.R1} == *.gz ]]; then
+            gunzip -c {input.R1} > {output.R1_unzipped}
+        else
+            cp {input.R1} {output.R1_unzipped}
+        fi
+
+        if [[ {input.R2} == *.gz ]]; then
+            gunzip -c {input.R2} > {output.R2_unzipped}
+        else
+            cp {input.R2} {output.R2_unzipped}
+        fi
         """
 
+rule run_fastqc:
+    input:
+        R1 = rules.unzip_reads.output.R1_unzipped,
+        R2 = rules.unzip_reads.output.R2_unzipped
+    output:
+        R1_fastqc_html_fp = "results/{sample}/fastqc/{sample}_R1_fastqc.html",
+        R2_fastqc_html_fp = "results/{sample}/fastqc/{sample}_R2_fastqc.html",
+    log:
+        "logs/{sample}/fastqc.log"
+    conda:
+        "envs/metagen.yaml"
+    shell:
+        """
+        echo "[INFO] $(date) [fastqc] Running FASTQC on: \n {input.R1} \n {input.R2}" >> {log}
+        touch {output.R1_fastqc_html_fp}
+        touch {output.R2_fastqc_html_fp}
+        """
 # might be useful if your db is on a slow disk and you have plenty of free memory:
 rule prepare_kraken2_db_shm:
     input:
@@ -163,3 +194,30 @@ rule run_kma:
         fi
         (kma -ipe {input.R1} {input.R2} -o {params.kma_align_output_prefix} -t_db {config[kma_ref_database]} -tmp -mem_mode ${{EXTRA_ARGS}} -ef -cge -nf -t 20) >> {log} 2>&1
         """
+
+rule run_ccmetagen:
+    input:
+        kma_align_output_res_fp="results/{sample}/kma/{sample}_out_kma.res"
+    output:
+        ccmetagen_output="results/{sample}/{sample}_ccmetagen/{sample}_ccmetagen.html"
+    log:
+        "logs/{sample}/ccmetagen.log"
+    conda:
+        "envs/metagen.yaml"
+    shell:
+        """
+        echo "[INFO] $(date) [ccmetagen] - Running CCMetagen.py on {input.kma_align_output_res_fp}" > {log}
+        mkdir -p {output.ccmetagen_output}
+        CCMetagen.py -i {input.kma_align_output_res_fp} -o {output.ccmetagen_output}/{wildcards.sample}_ccmetagen >> {log} 2>&1
+        """
+
+rule sample_report:
+    input:
+        ccmetagen_kma_result_fp=rules.run_ccmetagen.output.ccmetagen_output,
+        fastqc_report=rules.run_fastqc.output.R1_fastqc_html_fp,
+        kraken_result_fp=rules.run_kraken2.output.kraken_output_fp,
+        krona_result_fp = rules.run_krona.output.krona_output_fp
+    output:
+        report_fp = "results/{sample}/sample_report.md"
+    script:
+        "scripts/generate_report.py"
