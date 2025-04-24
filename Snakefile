@@ -1,26 +1,33 @@
+from snakemake.utils import min_version
+
+min_version("5.14.0")
 import pandas as pd
+
+
 configfile: "config/config.yaml"
+
+
 SAMPLES_DF = pd.read_csv(config["samples"], sep="\t")
 SAMPLES = SAMPLES_DF["sample"].to_list()
 SAMPLE_READS = {
-    row["sample"]: {k:row[k] for k in ["R1","R2"]} for _,row in SAMPLES_DF.iterrows()
+    row["sample"]: {k: row[k] for k in ["R1", "R2"]} for _, row in SAMPLES_DF.iterrows()
 }
+
 
 rule all:
     input:
-        expand("results/{sample}/sample_report.md",sample=SAMPLES)
-
+        expand("results/{sample}/sample_report.md", sample=SAMPLES),
 
 
 rule unzip_reads:
     input:
-        R1 = lambda wc: SAMPLE_READS[wc.sample]["R1"],
-        R2 = lambda wc: SAMPLE_READS[wc.sample]["R2"]
+        R1=lambda wc: SAMPLE_READS[wc.sample]["R1"],
+        R2=lambda wc: SAMPLE_READS[wc.sample]["R2"],
     output:
-        R1_unzipped = temp("results/raw_reads/{sample}_R1.fastq"),
-        R2_unzipped = temp("results/raw_reads/{sample}_R2.fastq")
+        R1_unzipped=temp("results/raw_reads/{sample}_R1.fastq"),
+        R2_unzipped=temp("results/raw_reads/{sample}_R2.fastq"),
     log:
-        "logs/{sample}/raw_reads.log"
+        "logs/{sample}/raw_reads.log",
     shell:
         """
         if [[ {input.R1} == *.gz ]]; then
@@ -36,14 +43,15 @@ rule unzip_reads:
         fi
         """
 
+
 rule run_fastqc:
     input:
-        R1 = rules.unzip_reads.output.R1_unzipped,
-        R2 = rules.unzip_reads.output.R2_unzipped
+        R1=rules.unzip_reads.output.R1_unzipped,
+        R2=rules.unzip_reads.output.R2_unzipped,
     output:
-        fastqc_output_dir = directory("results/{sample}/{sample}_fastqc")
+        fastqc_output_dir=directory("results/{sample}/{sample}_fastqc"),
     log:
-        "logs/{sample}/fastqc.log"
+        "logs/{sample}/fastqc.log",
     conda:
         "envs/metagen.yaml"
     shell:
@@ -52,15 +60,17 @@ rule run_fastqc:
         mkdir -p {output.fastqc_output_dir}
         fastqc -o {output.fastqc_output_dir} -f fastq {input.R1} {input.R2} >> {log} 2>&1
         """
+
+
 rule run_multiqc:
-    input: 
-        scan_dirs = expand(rules.run_fastqc.output.fastqc_output_dir,sample=SAMPLES)
+    input:
+        scan_dirs=expand(rules.run_fastqc.output.fastqc_output_dir, sample=SAMPLES),
     output:
         multiqc_report_dir=directory("results/multiqc"),
         multiqc_report_fp="results/multiqc/multiqc_report.html",
-        multiqc_data_dir=directory("results/multiqc/multiqc_data")
+        multiqc_data_dir=directory("results/multiqc/multiqc_data"),
     log:
-        "logs/multiqc.log"
+        "logs/multiqc.log",
     conda:
         "envs/metagen.yaml"
     shell:
@@ -74,11 +84,11 @@ rule run_multiqc:
 # might be useful if your db is on a slow disk and you have plenty of free memory:
 rule prepare_kraken2_db_shm:
     input:
-        db_dir = config["kraken2_db"]
+        db_dir=config["kraken2_db"],
     output:
-        db_dir = temp(directory(config["kraken2_tmpfs_path"]))
+        db_dir=temp(directory(config["kraken2_tmpfs_path"])),
     log:
-        "logs/databases/kraken2_setup.log"
+        "logs/databases/kraken2_setup.log",
     shell:
         """
         set -euo pipefail
@@ -96,18 +106,23 @@ rule prepare_kraken2_db_shm:
         fi
         """
 
+
 rule run_kraken2:
     input:
-        R1 = lambda wc: SAMPLE_READS[wc.sample]["R1"],
-        R2 = lambda wc: SAMPLE_READS[wc.sample]["R2"],
-        kraken2_db = rules.prepare_kraken2_db_shm.output.db_dir if config["kraken2_use_tmpfs"] else config["kraken2_db"]
+        R1=lambda wc: SAMPLE_READS[wc.sample]["R1"],
+        R2=lambda wc: SAMPLE_READS[wc.sample]["R2"],
+        kraken2_db=(
+            rules.prepare_kraken2_db_shm.output.db_dir
+            if config["kraken2_use_tmpfs"]
+            else config["kraken2_db"]
+        ),
     output:
         kraken_output_fp="results/{sample}/kraken2/{sample}_kraken2_output.txt",
-        kraken_report_fp="results/{sample}/kraken2/{sample}_kraken2_report.txt"
+        kraken_report_fp="results/{sample}/kraken2/{sample}_kraken2_report.txt",
     conda:
         "envs/metagen.yaml"
     log:
-        "logs/{sample}/kraken2.log"
+        "logs/{sample}/kraken2.log",
     shell:
         """
         EXTRA_ARGS=""
@@ -123,15 +138,16 @@ rule run_kraken2:
         ) >> {log} 2>&1
         """
 
+
 rule run_krona:
-    input: 
-        kraken_output_fp="results/{sample}/kraken2/{sample}_kraken2_output.txt"
+    input:
+        kraken_output_fp="results/{sample}/kraken2/{sample}_kraken2_output.txt",
     output:
-        krona_output_fp="results/{sample}/krona/{sample}_krona.html"
+        krona_output_fp="results/{sample}/krona/{sample}_krona.html",
     conda:
         "envs/metagen.yaml"
     log:
-        "logs/{sample}/krona.log"
+        "logs/{sample}/krona.log",
     shell:
         """
         echo "[INFO] $(date) [krona] - Running krona on kraken2 results {input.kraken_output_fp}" > {log}
@@ -142,13 +158,14 @@ rule run_krona:
         (ktImportTaxonomy -t 5 -m 3 -o {output.krona_output_fp} {input.kraken_output_fp}) >> {log} 2>&1
         """
 
+
 rule prepare_kma_db:
     input:
-        kma_compb_fp=lambda wc: f"{config['kma_ref_database']}.comp.b"
+        kma_compb_fp=lambda wc: f"{config['kma_ref_database']}.comp.b",
     output:
-        kma_db_is_ready_flag="results/kma_database/db_is_ready"
+        kma_db_is_ready_flag="results/kma_database/db_is_ready",
     log:
-        "logs/database/kma_setup.log"
+        "logs/database/kma_setup.log",
     conda:
         "envs/metagen.yaml"
     shell:
@@ -163,15 +180,17 @@ rule prepare_kma_db:
 
         touch {output.kma_db_is_ready_flag}
         """
+
+
 rule cleanup_databases:
     input:
         kma_db_is_ready_flag="results/kma_database/db_is_ready",
     output:
-        kma_db_cleanup_done="results/kma_database/db_cleanup_done"
+        kma_db_cleanup_done="results/kma_database/db_cleanup_done",
     conda:
         "envs/metagen.yaml"
     log:
-        "logs/databases/cleanup.log"
+        "logs/databases/cleanup.log",
     shell:
         """
         echo "[INFO] $(date) [database cleanup] - Starting cleanup of databases..." > {log}
@@ -185,22 +204,23 @@ rule cleanup_databases:
 
         """
 
+
 rule run_kma:
     input:
-        R1 = lambda wc: SAMPLE_READS[wc.sample]["R1"],
-        R2 = lambda wc: SAMPLE_READS[wc.sample]["R2"],
-        kma_db_is_ready = "results/kma_database/db_is_ready"
+        R1=lambda wc: SAMPLE_READS[wc.sample]["R1"],
+        R2=lambda wc: SAMPLE_READS[wc.sample]["R2"],
+        kma_db_is_ready="results/kma_database/db_is_ready",
     output:
         kma_align_output_aln_fp="results/{sample}/kma/{sample}_out_kma.aln",
         kma_align_output_fsa_fp="results/{sample}/kma/{sample}_out_kma.fsa",
         kma_align_output_mapstat_fp="results/{sample}/kma/{sample}_out_kma.mapstat",
-        kma_align_output_res_fp="results/{sample}/kma/{sample}_out_kma.res"
+        kma_align_output_res_fp="results/{sample}/kma/{sample}_out_kma.res",
     params:
-        kma_align_output_prefix="results/{sample}/kma/{sample}_out_kma"
+        kma_align_output_prefix="results/{sample}/kma/{sample}_out_kma",
     conda:
         "envs/metagen.yaml"
     log:
-        "logs/{sample}/kma.log"
+        "logs/{sample}/kma.log",
     shell:
         """
         echo "[INFO] $(date) [kma] - Running kma alignment against {config[kma_ref_database]}" > {log}
@@ -213,13 +233,14 @@ rule run_kma:
         (kma -ipe {input.R1} {input.R2} -o {params.kma_align_output_prefix} -t_db {config[kma_ref_database]} -tmp -mem_mode ${{EXTRA_ARGS}} -ef -cge -nf -t 20) >> {log} 2>&1
         """
 
+
 rule run_ccmetagen:
     input:
-        kma_align_output_res_fp="results/{sample}/kma/{sample}_out_kma.res"
+        kma_align_output_res_fp="results/{sample}/kma/{sample}_out_kma.res",
     output:
-        ccmetagen_output="results/{sample}/{sample}_ccmetagen/{sample}_ccmetagen.html"
+        ccmetagen_output="results/{sample}/{sample}_ccmetagen/{sample}_ccmetagen.html",
     log:
-        "logs/{sample}/ccmetagen.log"
+        "logs/{sample}/ccmetagen.log",
     conda:
         "envs/metagen.yaml"
     shell:
@@ -229,14 +250,15 @@ rule run_ccmetagen:
         CCMetagen.py -i {input.kma_align_output_res_fp} -o {output.ccmetagen_output}/{wildcards.sample}_ccmetagen >> {log} 2>&1
         """
 
+
 rule sample_report:
     input:
         ccmetagen_kma_result_fp=rules.run_ccmetagen.output.ccmetagen_output,
         fastqc_report=rules.run_fastqc.output.fastqc_output_dir,
         multiqc_report=rules.run_multiqc.output.multiqc_report_fp,
         kraken_result_fp=rules.run_kraken2.output.kraken_output_fp,
-        krona_result_fp = rules.run_krona.output.krona_output_fp
+        krona_result_fp=rules.run_krona.output.krona_output_fp,
     output:
-        report_fp = "results/{sample}/sample_report.md"
+        report_fp="results/{sample}/sample_report.md",
     script:
         "scripts/generate_report.py"
