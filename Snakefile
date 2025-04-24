@@ -28,6 +28,8 @@ rule unzip_reads:
         R2_unzipped=temp("results/raw_reads/{sample}_R2.fastq"),
     log:
         "logs/{sample}/raw_reads.log",
+    conda:
+        "envs/metagen.yaml"
     shell:
         """
         if [[ {input.R1} == *.gz ]]; then
@@ -89,11 +91,15 @@ rule prepare_kraken2_db_shm:
         db_dir=temp(directory(config["kraken2_tmpfs_path"])),
     log:
         "logs/databases/kraken2_setup.log",
+    conda:
+        "envs/metagen.yaml"
+    params:
+        use_tmpfs=config["kraken2_use_tmpfs"]
     shell:
         """
         set -euo pipefail
         echo "[INFO] $(date) [kraken2 db] - setup of kraken2 db" > {log}
-        if [[ "{config[kraken2_use_tmpfs]}" == "True" ]]; then
+        if [[ "{params.use_tmpfs}" == "True" ]]; then
             echo "[INFO] $(date) [kraken2 db] - attempt to copy kraken2 db into tmpfs ({output.db_dir})..." >> {log}
             KRAKEN_DB={output.db_dir}
             if [[ -d $KRAKEN_DB ]]; then
@@ -101,7 +107,7 @@ rule prepare_kraken2_db_shm:
             else
                 echo "[INFO] $(date) [kraken2 db] - copying kraken2-db..." >> {log}
                 mkdir -p $KRAKEN_DB
-                rsync --info=progress2 {config[kraken2_db]}/*.k2d $KRAKEN_DB >> {log}
+                rsync --info=progress2 {input.db_dir}/*.k2d $KRAKEN_DB >> {log}
             fi
         fi
         """
@@ -119,16 +125,19 @@ rule run_kraken2:
     output:
         kraken_output_fp="results/{sample}/kraken2/{sample}_kraken2_output.txt",
         kraken_report_fp="results/{sample}/kraken2/{sample}_kraken2_report.txt",
-    conda:
-        "envs/metagen.yaml"
     log:
         "logs/{sample}/kraken2.log",
+    conda:
+        "envs/metagen.yaml"
+    params:
+        use_tmpfs=config["kraken2_use_tmpfs"],
+        use_memory_mapping=config["kraken2_memory_mapping"]
     shell:
         """
         EXTRA_ARGS=""
         KRAKEN_DB={input.kraken2_db}
         echo "[INFO] $(date) [kraken2] - Running kraken2 on samples: \n{input.R1}\n{input.R2}" > {log}
-        if [[ "{config[kraken2_use_tmpfs]}" == "True" || "{config[kraken2_memory_mapping]}" == "True" ]]; then
+        if [[ "{params.use_tmpfs}" == "True" || "{params.use_memory_mapping}" == "True" ]]; then
             echo "[INFO] $(date) [kraken2] - Extending kraken2 arguments with --memory-mapping." >> {log}
             EXTRA_ARGS="${{EXTRA_ARGS}} --memory-mapping "
         fi
@@ -168,12 +177,15 @@ rule prepare_kma_db:
         "logs/database/kma_setup.log",
     conda:
         "envs/metagen.yaml"
+    params:
+        use_shm=config["kma_use_shm"],
+        kma_db_local_path=config["kma_ref_database"]
     shell:
         """
         echo "[INFO] $(date) [kma db] - Preparing kma database." > {log}
-        if [[ "{config[kma_use_shm]}" == "True" ]]; then
+        if [[ "{params.use_shm}" == "True" ]]; then
             echo "[INFO] $(date) [kma db] - loading database into shared memory..." >> {log}
-            (kma shm -t_db {config[kma_ref_database]} -shmLvl 1) >> {log} 2>&1
+            (kma shm -t_db {params.kma_db_local_path} -shmLvl 1) >> {log} 2>&1
         else
             echo "[INFO] $(date) [kma db] - not using shared memory." >> {log}
         fi
@@ -187,16 +199,20 @@ rule cleanup_databases:
         kma_db_is_ready_flag="results/kma_database/db_is_ready",
     output:
         kma_db_cleanup_done="results/kma_database/db_cleanup_done",
+    log:
+        "logs/databases/cleanup.log"
     conda:
         "envs/metagen.yaml"
-    log:
-        "logs/databases/cleanup.log",
+    params:
+        use_shm=config["kma_use_shm"],
+        kma_db_local_path=config["kma_ref_database"]
+
     shell:
         """
         echo "[INFO] $(date) [database cleanup] - Starting cleanup of databases..." > {log}
-        if [[ "{config[kma_use_shm]}" == "True" ]]; then
-            echo "[INFO] $(date) [database cleanup] - removing kma database ({config[kma_ref_database]}) from shared memory..." >> {log}
-            (kma shm -t_db {config[kma_ref_database]} -shmLvl 1 -destroy) >> {log} 2>&1
+        if [[ "{params.use_shm}" == "True" ]]; then
+            echo "[INFO] $(date) [database cleanup] - removing kma database ({params.kma_db_local_path}) from shared memory..." >> {log}
+            (kma shm -t_db {params.kma_db_local_path} -shmLvl 1 -destroy) >> {log} 2>&1
         else
             echo "[INFO] $(date) [database cleanup] - This workflow dod not use shared memory." >> {log}
         fi
@@ -211,26 +227,25 @@ rule run_kma:
         R2=lambda wc: SAMPLE_READS[wc.sample]["R2"],
         kma_db_is_ready="results/kma_database/db_is_ready",
     output:
-        kma_align_output_aln_fp="results/{sample}/kma/{sample}_out_kma.aln",
-        kma_align_output_fsa_fp="results/{sample}/kma/{sample}_out_kma.fsa",
-        kma_align_output_mapstat_fp="results/{sample}/kma/{sample}_out_kma.mapstat",
         kma_align_output_res_fp="results/{sample}/kma/{sample}_out_kma.res",
     params:
-        kma_align_output_prefix="results/{sample}/kma/{sample}_out_kma",
+        kma_align_output_prefix=lambda wc, output: output["kma_align_output_res_fp"].replace(".res",""),
+        use_shm=config["kma_use_shm"],
+        kma_db_local_path=config["kma_ref_database"]
     conda:
         "envs/metagen.yaml"
     log:
         "logs/{sample}/kma.log",
     shell:
         """
-        echo "[INFO] $(date) [kma] - Running kma alignment against {config[kma_ref_database]}" > {log}
+        echo "[INFO] $(date) [kma] - Running kma alignment against {params.kma_db_local_path}" > {log}
         echo "[INFO] $(date) [kma] - samples: \n{input.R1}\n{input.R2}" > {log}
         EXTRA_ARGS=""
-        if [[ "{config[kma_use_shm]}" == "True" ]]; then
+        if [[ "{params.use_shm}" == "True" ]]; then
             echo "[INFO] $(date) - Extending kma arguments with -shm." >> {log}
             EXTRA_ARGS="${{EXTRA_ARGS}} -shm "
         fi
-        (kma -ipe {input.R1} {input.R2} -o {params.kma_align_output_prefix} -t_db {config[kma_ref_database]} -tmp -mem_mode ${{EXTRA_ARGS}} -ef -cge -nf -t 20) >> {log} 2>&1
+        (kma -ipe {input.R1} {input.R2} -o {params.kma_align_output_prefix} -t_db {params.kma_db_local_path} -tmp -mem_mode ${{EXTRA_ARGS}} -ef -cge -nf -t 20) >> {log} 2>&1
         """
 
 
@@ -260,5 +275,9 @@ rule sample_report:
         krona_result_fp=rules.run_krona.output.krona_output_fp,
     output:
         report_fp="results/{sample}/sample_report.md",
+    log:
+        "logs/{sample}/sample_report.log"
+    conda:
+        "snakemake"
     script:
         "scripts/generate_report.py"
