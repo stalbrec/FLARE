@@ -1,0 +1,2 @@
+use-conda: true
+notemp: false # keep all temp output. e.g. keep kraken2 database in tmpfs

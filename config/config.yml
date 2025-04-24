@@ -1,0 +1,4 @@
+samples: "config/samples.tsv"
+kraken2_db: "/home/common-data/databases/kraken2_old"
+kraken2_use_tmpfs: false
+kraken2_tmpfs_path: "/mnt/database_tmpfs/kraken2_db"
