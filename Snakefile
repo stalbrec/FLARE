@@ -255,6 +255,8 @@ rule run_ccmetagen:
         kma_align_output_res_fp="results/{sample}/kma/{sample}_out_kma.res",
     output:
         ccmetagen_output="results/{sample}/{sample}_ccmetagen/{sample}_ccmetagen.html",
+    params:
+        ccmetagen_output_prefix=lambda wc, output: output["ccmetagen_output"].replace(".html", ""),
     log:
         "logs/{sample}/ccmetagen.log",
     conda:
@@ -262,8 +264,7 @@ rule run_ccmetagen:
     shell:
         """
         echo "[INFO] $(date) [ccmetagen] - Running CCMetagen.py on {input.kma_align_output_res_fp}" > {log}
-        mkdir -p {output.ccmetagen_output}
-        CCMetagen.py -i {input.kma_align_output_res_fp} -o {output.ccmetagen_output}/{wildcards.sample}_ccmetagen >> {log} 2>&1
+        CCMetagen.py -i {input.kma_align_output_res_fp} -o {params.ccmetagen_output_prefix} >> {log} 2>&1
         """
 
 

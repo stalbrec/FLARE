@@ -2,6 +2,7 @@ channels:
   - conda-forge
   - bioconda
 dependencies:
+  - python=3.11
   - kraken2=2.14
   - metaxa=2.2.3
   - ccmetagen=1.2.5
