@@ -268,6 +268,27 @@ rule run_ccmetagen:
         """
 
 
+rule run_metaxa2:
+    input:
+        R1=rules.unzip_reads.output.R1_unzipped,
+        R2=rules.unzip_reads.output.R2_unzipped,
+    output:
+        metaxa_summary_fp="results/{sample}/metaxa2/{sample}.summary.txt",
+    params:
+        metaxa_output_dir=lambda wc, output: os.path.dirname(output["metaxa_summary_fp"]),
+        metaxa_output_prefix=lambda wc,output: output["metaxa_summary_fp"].replace(".summary.txt","")
+    log:
+        "logs/{sample}/metaxa2.log",
+    conda:
+        "envs/metagen.yaml"
+    shell:
+        """
+        echo "[INFO] $(date) [metaxa2] - Running metaxa2 on reads: \n{input.R1}\n{input.R2}" > {log}
+        mkdir -p {params.metaxa_output_dir}
+        metaxa2 -1 {input.R1} -2 {input.R2} -o {params.metaxa_output_prefix} --cpu 100 -t b >> {log} 2>&1
+        """
+
+
 rule sample_report:
     input:
         ccmetagen_kma_result_fp=rules.run_ccmetagen.output.ccmetagen_output,
@@ -275,6 +296,7 @@ rule sample_report:
         multiqc_report=rules.run_multiqc.output.multiqc_report_fp,
         kraken_result_fp=rules.run_kraken2.output.kraken_output_fp,
         krona_result_fp=rules.run_krona.output.krona_output_fp,
+        metaxa2_output_fp=rules.run_metaxa2.output.metaxa_summary_fp,
     output:
         report_fp="results/{sample}/sample_report.md",
     log:
