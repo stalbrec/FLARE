@@ -248,7 +248,7 @@ rule run_kma:
             echo "[INFO] $(date) - Extending kma arguments with -shm." >> {log}
             EXTRA_ARGS="${{EXTRA_ARGS}} -shm "
         fi
-        (kma -ipe {input.R1} {input.R2} -o {params.kma_align_output_prefix} -t_db {params.kma_db_local_path} -tmp -mem_mode ${{EXTRA_ARGS}} -ef -cge -nf -t {treads}) >> {log} 2>&1
+        (kma -ipe {input.R1} {input.R2} -o {params.kma_align_output_prefix} -t_db {params.kma_db_local_path} -tmp -mem_mode ${{EXTRA_ARGS}} -ef -cge -nf -t {threads}) >> {log} 2>&1
         """
 
 
@@ -258,8 +258,7 @@ rule run_ccmetagen:
     output:
         ccmetagen_output="results/{sample}/{sample}_ccmetagen/{sample}_ccmetagen.html",
     params:
-        ccmetagen_output_prefix=lambda wc, output: os.path.splitext(output["ccmetagen_output"])[0]
-        ),
+        ccmetagen_output_prefix=lambda wc, output: os.path.splitext(output["ccmetagen_output"])[0],
     log:
         "logs/{sample}/ccmetagen.log",
     conda:
