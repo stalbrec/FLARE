@@ -2,7 +2,7 @@
 
 Workflow to analyse metagenomic samples.
 
-> DAG gernated by: `snakemake --dag dot | dot -Tsvg > dag.svg`
+> DAG generated with: `snakemake --dag dot | dot -Tsvg > dag.svg`
 ![dag.svg](dag.svg)
 
 
@@ -13,7 +13,7 @@ In order to run this workflow, follow these steps:
 1. clone the repository and install base `snakemake` environment:
 
     ```bash
-    git clone https//github.com/stalbrec/FLARE
+    git clone https://github.com/stalbrec/FLARE
     cd FLARE
     conda env create -n snakemake -f envs/snakemake.yaml
     ```
@@ -31,6 +31,10 @@ In order to run this workflow, follow these steps:
     # --cores <number of cores default:64> 
     # -n perform a dry-run and list the jobs that will be run
     ```
+
+#### Update Workflow
+
+Simply change directory in the terminal to `<path/to>/FLARE` and execute `git pull`.
 
 ## Kraken2
 
