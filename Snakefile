@@ -57,11 +57,12 @@ rule run_fastqc:
         "logs/{sample}/fastqc.log",
     conda:
         "envs/metagen.yaml"
+    threads: 8
     shell:
         """
         echo "[INFO] $(date) [fastqc] Running FASTQC on: \n {input.R1} \n {input.R2}" >> {log}
         mkdir -p {output.fastqc_output_dir}
-        fastqc -o {output.fastqc_output_dir} -f fastq {input.R1} {input.R2} >> {log} 2>&1
+        fastqc -o {output.fastqc_output_dir} -f fastq {input.R1} {input.R2} -t {threads} >> {log} 2>&1
         """
 
 
@@ -133,6 +134,7 @@ rule run_kraken2:
     params:
         use_tmpfs=config["kraken2_use_tmpfs"],
         use_memory_mapping=config["kraken2_memory_mapping"],
+    threads: 0.5*workflow.cores
     shell:
         """
         EXTRA_ARGS=""
@@ -236,6 +238,7 @@ rule run_kma:
         "envs/metagen.yaml"
     log:
         "logs/{sample}/kma.log",
+    threads: 0.5*workflow.cores
     shell:
         """
         echo "[INFO] $(date) [kma] - Running kma alignment against {params.kma_db_local_path}" > {log}
@@ -245,7 +248,7 @@ rule run_kma:
             echo "[INFO] $(date) - Extending kma arguments with -shm." >> {log}
             EXTRA_ARGS="${{EXTRA_ARGS}} -shm "
         fi
-        (kma -ipe {input.R1} {input.R2} -o {params.kma_align_output_prefix} -t_db {params.kma_db_local_path} -tmp -mem_mode ${{EXTRA_ARGS}} -ef -cge -nf -t 20) >> {log} 2>&1
+        (kma -ipe {input.R1} {input.R2} -o {params.kma_align_output_prefix} -t_db {params.kma_db_local_path} -tmp -mem_mode ${{EXTRA_ARGS}} -ef -cge -nf -t {treads}) >> {log} 2>&1
         """
 
 
@@ -281,11 +284,12 @@ rule run_metaxa2:
         "logs/{sample}/metaxa2.log",
     conda:
         "envs/metagen.yaml"
+    threads: 0.25*workflow.cores
     shell:
         """
         echo "[INFO] $(date) [metaxa2] - Running metaxa2 on reads: \n{input.R1}\n{input.R2}" > {log}
         mkdir -p {params.metaxa_output_dir}
-        metaxa2 -1 {input.R1} -2 {input.R2} -o {params.metaxa_output_prefix} --cpu 100 -t b >> {log} 2>&1
+        metaxa2 -1 {input.R1} -2 {input.R2} -o {params.metaxa_output_prefix} --cpu {threads} -t b >> {log} 2>&1
         """
 
 
