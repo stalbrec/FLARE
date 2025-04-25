@@ -5,6 +5,33 @@ Workflow to analyse metagenomic samples.
 > DAG gernated by: `snakemake --dag dot | dot -Tsvg > dag.svg`
 ![dag.svg](dag.svg)
 
+
+## Quickstart
+
+In order to run this workflow, follow these steps:
+
+1. clone the repository and install base `snakemake` environment:
+
+    ```bash
+    git clone https//github.com/stalbrec/FLARE
+    cd FLARE
+    conda env create -n snakemake -f envs/snakemake.yaml
+    ```
+
+2. update [`config/samples.tsv`](config/samples.tsv), to your desired list of samples, e.g.:
+
+    ```tsv
+    sample	R1	R2
+    Sample1	/path/to/Sample1/Sample1_R1.fastq.gz	/path/to/Sample1/Sample1_R1.fastq.gz
+    ```
+3. run the workflow
+    ```bash
+    snakemake 
+    # options: 
+    # --cores <number of cores default:64> 
+    # -n perform a dry-run and list the jobs that will be run
+    ```
+
 ## Kraken2
 
 for kraken2 rules there is the option to load the database to tmpfs. For this, make sure you have a large enough tmpfs mounted somewhere and point the option `kraken2_tmpfs_path` in [config.yml](config/config.yml#L4).
