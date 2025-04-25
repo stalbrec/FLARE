@@ -1,3 +1,4 @@
+import os
 from snakemake.utils import min_version
 
 min_version("5.14.0")
@@ -228,9 +229,7 @@ rule run_kma:
     output:
         kma_align_output_res_fp="results/{sample}/kma/{sample}_out_kma.res",
     params:
-        kma_align_output_prefix=lambda wc, output: output[
-            "kma_align_output_res_fp"
-        ].replace(".res", ""),
+        kma_align_output_prefix=lambda wc, output: os.path.splitext(output["kma_align_output_res_fp"])[0],
         use_shm=config["kma_use_shm"],
         kma_db_local_path=config["kma_ref_database"],
     conda:
@@ -256,7 +255,8 @@ rule run_ccmetagen:
     output:
         ccmetagen_output="results/{sample}/{sample}_ccmetagen/{sample}_ccmetagen.html",
     params:
-        ccmetagen_output_prefix=lambda wc, output: output["ccmetagen_output"].replace(".html", ""),
+        ccmetagen_output_prefix=lambda wc, output: os.path.splitext(output["ccmetagen_output"])[0]
+        ),
     log:
         "logs/{sample}/ccmetagen.log",
     conda:
