@@ -134,7 +134,7 @@ rule run_kraken2:
     params:
         use_tmpfs=config["kraken2_use_tmpfs"],
         use_memory_mapping=config["kraken2_memory_mapping"],
-    threads: 0.5*workflow.cores
+    threads: 0.5 * workflow.cores
     shell:
         """
         EXTRA_ARGS=""
@@ -231,14 +231,16 @@ rule run_kma:
     output:
         kma_align_output_res_fp="results/{sample}/kma/{sample}_out_kma.res",
     params:
-        kma_align_output_prefix=lambda wc, output: os.path.splitext(output["kma_align_output_res_fp"])[0],
+        kma_align_output_prefix=lambda wc, output: os.path.splitext(
+            output["kma_align_output_res_fp"]
+        )[0],
         use_shm=config["kma_use_shm"],
         kma_db_local_path=config["kma_ref_database"],
     conda:
         "envs/metagen.yaml"
     log:
         "logs/{sample}/kma.log",
-    threads: 0.5*workflow.cores
+    threads: 0.5 * workflow.cores
     shell:
         """
         echo "[INFO] $(date) [kma] - Running kma alignment against {params.kma_db_local_path}" > {log}
@@ -258,7 +260,9 @@ rule run_ccmetagen:
     output:
         ccmetagen_output="results/{sample}/{sample}_ccmetagen/{sample}_ccmetagen.html",
     params:
-        ccmetagen_output_prefix=lambda wc, output: os.path.splitext(output["ccmetagen_output"])[0],
+        ccmetagen_output_prefix=lambda wc, output: os.path.splitext(
+            output["ccmetagen_output"]
+        )[0],
     log:
         "logs/{sample}/ccmetagen.log",
     conda:
@@ -277,13 +281,17 @@ rule run_metaxa2:
     output:
         metaxa_summary_fp="results/{sample}/metaxa2/{sample}.summary.txt",
     params:
-        metaxa_output_dir=lambda wc, output: os.path.dirname(output["metaxa_summary_fp"]),
-        metaxa_output_prefix=lambda wc,output: output["metaxa_summary_fp"].replace(".summary.txt","")
+        metaxa_output_dir=lambda wc, output: os.path.dirname(
+            output["metaxa_summary_fp"]
+        ),
+        metaxa_output_prefix=lambda wc, output: output["metaxa_summary_fp"].replace(
+            ".summary.txt", ""
+        ),
     log:
         "logs/{sample}/metaxa2.log",
     conda:
         "envs/metagen.yaml"
-    threads: 0.25*workflow.cores
+    threads: 0.25 * workflow.cores
     shell:
         """
         echo "[INFO] $(date) [metaxa2] - Running metaxa2 on reads: \n{input.R1}\n{input.R2}" > {log}
